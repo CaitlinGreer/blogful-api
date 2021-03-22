@@ -24,7 +24,7 @@ articlesRouter
         .catch(next)
     })
 
-    .post(jsonParser, (req, res, next) => {
+    .post(jsonParser, (req, res, next) => { 
     const { title, content, style } = req.body
     const newArticle = { title, content, style }
     
@@ -40,29 +40,45 @@ articlesRouter
         req.app.get('db'),
         newArticle
     )
-    .then(article => {
-        res
-            .status(201)
-            .location(`/articles/${article.id}`)
-            .json(serializeArticle(article))
-    })
-    .catch(next)
-})
-
-articlesRouter
-    .route('/:article_id')
-    .get((req, res, next) => {
-    const knexInstance = req.app.get('db')
-    ArticlesService.getById(knexInstance, req.params.article_id)
         .then(article => {
-            if(!article){
-                return res.status(404).json({ 
-                    error: { message: `Article doesn't exist` }
-                })
-            }
-            res.json(serializeArticle(article))
+            res
+                .status(201)
+                .location(`/articles/${article.id}`)
+                .json(serializeArticle(article))
         })
         .catch(next)
-})
+    })
+    
+articlesRouter
+    .route('/:article_id')
+    .all((req, res, next) => {
+        ArticlesService.getById(
+            req.app.get('db'),
+            req.params.article_id
+        )
+            .then(article => {
+                if(!article) {
+                    return res.status(404).json({
+                        error: { message: `Article doesn't exist` }
+                    })
+                }
+                res.article = article //save the article for the next middleware
+                next() // call next so next middleware happens
+            })
+            .catch(next)
+    })
+    .get((req, res, next) => {
+        res.json(serializeArticle(res.article))
+    })
+    .delete((req, res, next) => {
+        ArticlesService.deleteArticle(
+            req.app.get('db'),
+            req.params.article_id
+        )
+        .then(() => {
+            res.status(204).end()
+        })
+        .catch(next)
+    })
 
 module.exports = articlesRouter
